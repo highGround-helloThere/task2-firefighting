@@ -1,0 +1,49 @@
+# Course archives and large imported packages
+*.zip
+*.7z
+*.rar
+*.unitypackage
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+.env
+
+# Models and datasets
+datasets/
+data/
+weights/
+checkpoints/
+*.pt
+*.pth
+*.onnx
+*.om
+
+# Unity generated directories
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+MemoryCaptures/
+Recordings/
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Runtime output
+logs/
+*.log
+
