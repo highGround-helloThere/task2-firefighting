@@ -2,6 +2,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -57,6 +58,45 @@ class UdpAutonomyFieldsTests(unittest.TestCase):
         self.assertTrue(packet["autonomy_valid"])
         self.assertEqual(0.45, packet["auto_v"])
         self.assertEqual("explore_forward", packet["auto_state"])
+
+    def test_extinguish_pulse_is_latched_until_a_packet_is_sent(self):
+        fake = FakeSocket()
+        telemetry = UdpPerceptionTelemetry(
+            {
+                "udp": {
+                    "enabled": True,
+                    "destination_host": "192.168.137.1",
+                    "destination_port": 6101,
+                    "send_hz": 10.0,
+                }
+            },
+            sock=fake,
+            session_id="test-session",
+        )
+
+        with patch(
+            "perception.udp_telemetry.time.monotonic",
+            side_effect=[10.0, 10.01, 10.11, 10.22],
+        ):
+            telemetry.emit_status("starting", video_ok=False, force=True)
+            pulse_sent = telemetry.emit_detection(
+                {"autonomy_valid": True, "auto_extinguish": True}
+            )
+            latched_sent = telemetry.emit_detection(
+                {"autonomy_valid": True, "auto_extinguish": False}
+            )
+            cleared_sent = telemetry.emit_detection(
+                {"autonomy_valid": True, "auto_extinguish": False}
+            )
+
+        self.assertFalse(pulse_sent)
+        self.assertTrue(latched_sent)
+        self.assertTrue(cleared_sent)
+        packets = [json.loads(data) for data, _destination in fake.sent]
+        self.assertEqual(
+            [False, True, False],
+            [packet["auto_extinguish"] for packet in packets],
+        )
 
 
 if __name__ == "__main__":

@@ -30,6 +30,7 @@ class UdpPerceptionTelemetry:
         self._owns_socket = sock is None
         self._last_emit = 0.0
         self._sequence = 0
+        self._pending_extinguish = False
         self.last_error = None
 
         if self.enabled and self._socket is None:
@@ -75,6 +76,10 @@ class UdpPerceptionTelemetry:
     def emit_detection(self, result, force=False):
         detected = bool(result.get("detected"))
         candidate = bool(result.get("candidate_detected"))
+        self._pending_extinguish = (
+            self._pending_extinguish
+            or bool(result.get("auto_extinguish", False))
+        )
         state = "detected" if detected else ("candidate" if candidate else "clear")
         payload = {
             "state": state,
@@ -96,7 +101,7 @@ class UdpPerceptionTelemetry:
             "autonomy_valid": bool(result.get("autonomy_valid", False)),
             "auto_v": self._number(result.get("auto_v"), 0.0),
             "auto_steer": self._number(result.get("auto_steer"), 0.0),
-            "auto_extinguish": bool(result.get("auto_extinguish", False)),
+            "auto_extinguish": self._pending_extinguish,
             "auto_state": str(result.get("auto_state", "disabled")),
             "dynamic_obstacle": bool(result.get("dynamic_obstacle", False)),
             "obstacle_direction": str(result.get("obstacle_direction", "none")),
@@ -105,9 +110,14 @@ class UdpPerceptionTelemetry:
             "clearance_front": self._number(result.get("clearance_front"), 0.0),
             "clearance_right": self._number(result.get("clearance_right"), 0.0),
         }
-        return self._send(payload, force=force)
+        sent = self._send(payload, force=force)
+        if sent and payload["auto_extinguish"]:
+            self._pending_extinguish = False
+        return sent
 
     def emit_status(self, state, video_ok, force=False):
+        # Never carry a stale action across startup, video loss, or shutdown.
+        self._pending_extinguish = False
         return self._send(
             {
                 "state": str(state),
