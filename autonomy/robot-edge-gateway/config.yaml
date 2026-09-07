@@ -1,0 +1,23 @@
+project:
+  name: "robot-edge-gateway"
+  mode: "transparent_control_gateway"
+
+control_proxy:
+  listen_host: "0.0.0.0"
+  listen_port: 5075
+  allowed_client_ips:
+    - "192.168.137.1"
+  upstream_host: "192.168.137.157"
+  upstream_hosts:
+    - "192.168.137.157"
+    - "192.168.137.251"
+    - "192.168.149.1"
+  upstream_port: 5075
+  connect_timeout_seconds: 3.0
+  socket_timeout_seconds: 0.5
+  buffer_size: 4096
+
+safety:
+  transparent_forwarding_only: true
+  generated_motion_commands_allowed: false
+  max_clients: 1

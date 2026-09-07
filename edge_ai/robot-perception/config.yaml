@@ -1,0 +1,53 @@
+project:
+  name: "robot-perception"
+  mode: "shadow_perception"
+
+video:
+  url: "http://192.168.137.157:8080/?action=stream"
+  urls:
+    - "http://192.168.137.157:8080/?action=stream"
+    - "http://192.168.137.251:8080/?action=stream"
+    - "http://192.168.149.1:8080/?action=stream"
+  reconnect_delay_seconds: 1.0
+  consecutive_read_failures_before_reconnect: 5
+
+video_proxy:
+  enabled: true
+  listen_host: "0.0.0.0"
+  listen_port: 8080
+  jpeg_quality: 85
+
+detection:
+  target: "red_ball"
+  color_space: "LAB"
+  lab_min: [55, 145, 118]
+  lab_max: [190, 195, 150]
+  processing_width: 640
+  processing_height: 480
+  gaussian_blur_kernel: 3
+  morphology_kernel: 3
+  minimum_contour_area: 50.0
+  minimum_circularity: 0.65
+  minimum_aspect_ratio: 0.60
+  maximum_aspect_ratio: 1.67
+  confirmation_frames: 3
+  release_frames: 3
+
+telemetry:
+  minimum_interval_seconds: 0.25
+  heartbeat_interval_seconds: 2.0
+  udp:
+    enabled: true
+    destination_host: "192.168.137.1"
+    destination_port: 6101
+    send_hz: 10.0
+    schema_version: 1
+    source: "orange_pi"
+
+safety:
+  allowed_remote_tcp_ports: [8080]
+  allowed_outbound_udp_destinations:
+    - "192.168.137.1:6101"
+  network_listener_enabled: true
+  allowed_network_listeners:
+    - "tcp:0.0.0.0:8080"
