@@ -24,6 +24,17 @@ public sealed class PerceptionTelemetryMessage
     public int frame_width;
     public int frame_height;
     public float processing_ms;
+    public bool autonomy_valid;
+    public float auto_v;
+    public float auto_steer;
+    public bool auto_extinguish;
+    public string auto_state;
+    public bool dynamic_obstacle;
+    public string obstacle_direction;
+    public float motion_ratio;
+    public float clearance_left;
+    public float clearance_front;
+    public float clearance_right;
 
     public bool IsSupported()
     {

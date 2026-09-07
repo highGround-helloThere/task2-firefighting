@@ -93,6 +93,17 @@ class UdpPerceptionTelemetry:
             "processing_ms": self._number(
                 result.get("processing_delay_ms"), 0.0
             ),
+            "autonomy_valid": bool(result.get("autonomy_valid", False)),
+            "auto_v": self._number(result.get("auto_v"), 0.0),
+            "auto_steer": self._number(result.get("auto_steer"), 0.0),
+            "auto_extinguish": bool(result.get("auto_extinguish", False)),
+            "auto_state": str(result.get("auto_state", "disabled")),
+            "dynamic_obstacle": bool(result.get("dynamic_obstacle", False)),
+            "obstacle_direction": str(result.get("obstacle_direction", "none")),
+            "motion_ratio": self._number(result.get("motion_ratio"), 0.0),
+            "clearance_left": self._number(result.get("clearance_left"), 0.0),
+            "clearance_front": self._number(result.get("clearance_front"), 0.0),
+            "clearance_right": self._number(result.get("clearance_right"), 0.0),
         }
         return self._send(payload, force=force)
 
@@ -113,6 +124,17 @@ class UdpPerceptionTelemetry:
                 "frame_width": 0,
                 "frame_height": 0,
                 "processing_ms": 0.0,
+                "autonomy_valid": False,
+                "auto_v": 0.0,
+                "auto_steer": 0.0,
+                "auto_extinguish": False,
+                "auto_state": str(state),
+                "dynamic_obstacle": False,
+                "obstacle_direction": "none",
+                "motion_ratio": 0.0,
+                "clearance_left": 0.0,
+                "clearance_front": 0.0,
+                "clearance_right": 0.0,
             },
             force=force,
         )

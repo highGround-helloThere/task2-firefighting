@@ -14,6 +14,7 @@ from pathlib import Path
 import yaml
 
 from perception.detector import build_detector
+from perception.autonomy import build_autonomy
 from perception.snapshot_server import SnapshotServer
 from perception.telemetry import JsonLineTelemetry
 from perception.udp_telemetry import UdpPerceptionTelemetry
@@ -58,6 +59,7 @@ def parse_args():
 def run(config, max_frames=0):
     source = MjpegVideoSource(config["video"])
     detector = build_detector(config["detection"])
+    autonomy = build_autonomy(config.get("autonomy", {}))
     telemetry = JsonLineTelemetry(config["telemetry"])
     udp_telemetry = UdpPerceptionTelemetry(config["telemetry"])
     snapshot_server = SnapshotServer(config["video_proxy"])
@@ -88,6 +90,7 @@ def run(config, max_frames=0):
             captured_at, frame = frame_record
             snapshot_server.publish(frame)
             result = detector.process(frame)
+            result.update(autonomy.process(frame, result))
             result["captured_at"] = captured_at
             result["processed_at"] = time.time()
             result["processing_delay_ms"] = round(

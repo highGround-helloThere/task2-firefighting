@@ -361,6 +361,12 @@ public class RobotSyncManager : MonoBehaviour
     [Min(0.1f)] public float recoveryNeutralSeconds = 0.5f;
     [Range(0f, 0.5f)] public float recoveryNeutralThreshold = 0.1f;
 
+    [Header("Orange Pi 自主控制")]
+    [SerializeField] private bool autonomyEnabled;
+    [Min(0.1f)] public float autonomyWatchdogSeconds = 0.6f;
+    [Range(0f, 0.5f)] public float autonomyTakeoverThreshold = 0.2f;
+    public bool AutonomyEnabled => autonomyEnabled;
+
     [Header("事件（外部订阅）")]
     public UnityEvent<string> onColorSignalReceived = new UnityEvent<string>(); // "RED"/"GREEN" 颜色回传
     public UnityEvent<string> onBallDetected = new UnityEvent<string>(); // 小球检测回传
@@ -378,6 +384,10 @@ public class RobotSyncManager : MonoBehaviour
 
     private volatile float _lastV, _lastSteer;
     private volatile bool _isGrabbing;
+    private float _autonomyV;
+    private float _autonomySteer;
+    private float _lastAutonomyUpdate = float.NegativeInfinity;
+    private bool _autoExtinguishPrevious;
 
     private readonly ConcurrentQueue<string> _recvQueue = new ConcurrentQueue<string>();
     private readonly ConcurrentQueue<string> _ballQueue = new ConcurrentQueue<string>();
@@ -574,6 +584,12 @@ public class RobotSyncManager : MonoBehaviour
             Debug.Log("[TCP] Recv : RED (keyboard debug)");
         }
 
+        // 键盘调试：U 键切换手动/自主控制。
+        if (enableKeyboardButtonDebug && Keyboard.current != null && Keyboard.current.uKey.wasPressedThisFrame)
+        {
+            SetAutonomousMode(!autonomyEnabled);
+        }
+
         while (_ballQueue.TryDequeue(out var targetId))
         {
             try { onBallDetected?.Invoke(targetId); }
@@ -638,8 +654,26 @@ public class RobotSyncManager : MonoBehaviour
 
         float manualV = Mathf.Abs(move.y) < deadzone ? 0f : move.y;
         float manualSteer = Mathf.Abs(rotate.x) < deadzone ? 0f : Mathf.Clamp(rotate.x * turnScale, -1f, 1f);
-        _lastV = manualV;
-        _lastSteer = manualSteer;
+        bool manualTakeover = autonomyEnabled
+            && (Mathf.Abs(manualV) > autonomyTakeoverThreshold
+                || Mathf.Abs(manualSteer) > autonomyTakeoverThreshold);
+        if (manualTakeover)
+        {
+            SetAutonomousMode(false);
+            Debug.Log("[AUTO] Manual stick takeover");
+        }
+
+        if (autonomyEnabled)
+        {
+            bool autonomyFresh = Time.unscaledTime - _lastAutonomyUpdate <= autonomyWatchdogSeconds;
+            _lastV = autonomyFresh ? _autonomyV : 0f;
+            _lastSteer = autonomyFresh ? _autonomySteer : 0f;
+        }
+        else
+        {
+            _lastV = manualV;
+            _lastSteer = manualSteer;
+        }
 
         bool recoveryInputNeutral = Mathf.Abs(_lastV) <= recoveryNeutralThreshold
             && Mathf.Abs(_lastSteer) <= recoveryNeutralThreshold;
@@ -700,6 +734,49 @@ public class RobotSyncManager : MonoBehaviour
             onActionTriggered?.Invoke();
             _ = SendImmediateCmd(rightGripCommend);
         }
+    }
+
+    public void SetAutonomousMode(bool enabled)
+    {
+        autonomyEnabled = enabled;
+        _lastV = 0f;
+        _lastSteer = 0f;
+        _autoExtinguishPrevious = false;
+        if (!enabled)
+        {
+            _autonomyV = 0f;
+            _autonomySteer = 0f;
+        }
+        Debug.Log("[AUTO] " + (enabled ? "Enabled" : "Disabled"));
+    }
+
+    public void ApplyAutonomousTelemetry(PerceptionTelemetryMessage message)
+    {
+        if (message == null || !message.autonomy_valid)
+        {
+            InvalidateAutonomousTelemetry();
+            return;
+        }
+
+        _autonomyV = Mathf.Clamp(message.auto_v, -1f, 1f);
+        _autonomySteer = Mathf.Clamp(message.auto_steer, -1f, 1f);
+        _lastAutonomyUpdate = Time.unscaledTime;
+
+        bool extinguishEdge = message.auto_extinguish && !_autoExtinguishPrevious;
+        _autoExtinguishPrevious = message.auto_extinguish;
+        if (autonomyEnabled && extinguishEdge)
+        {
+            onActionTriggered?.Invoke();
+            _ = SendImmediateCmd(rightGripCommend);
+        }
+    }
+
+    public void InvalidateAutonomousTelemetry()
+    {
+        _autonomyV = 0f;
+        _autonomySteer = 0f;
+        _lastAutonomyUpdate = float.NegativeInfinity;
+        _autoExtinguishPrevious = false;
     }
 
     private void HandleButtonEdge(InputActionReference actionRef, ref bool heldPrev, string cmd, bool triggerLocalAction)
