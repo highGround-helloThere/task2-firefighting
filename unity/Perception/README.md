@@ -18,3 +18,8 @@ Local test without an Orange Pi:
 
 The receiver changes to disconnected when no valid packet arrives for 0.5
 seconds. This status has no effect on robot motion.
+
+The current telemetry contract is `schema_version: 1`. Packets are ordered by
+`session_id` and `seq`; a new session resets the sequence watermark. The
+receiver ignores stale packets and marks the source disconnected after the
+watchdog expires, so a lost AI link cannot be mistaken for a safe frame.

@@ -2,6 +2,7 @@
 
 | 包                         | 版本       |
 | -------------------------- | ---------- |
+| glTFast                    | `6.10.2`  |
 | Input System               | `1.12.0` |
 | Shader Graph               | `14.0.12` |
 | XR Interaction Toolkit     | `3.1.1`  |

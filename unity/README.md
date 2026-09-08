@@ -12,6 +12,23 @@
 
 通信端口：控制 TCP `5075`、视频 TCP `8080`、感知 UDP `6101`。
 
+## 现场验收入口
+
+无 PICO 设备时，把 `KeyboardIntentSource` 挂到场景对象即可复现同一套抽象动作：
+
+- `W/S`：前进/后退
+- `A/D`：左转/右转
+- `J`：灭火
+- `Esc`：急停
+
+PICO 设备接入时，把 `XrBodyIntentSource` 的 `head`、`locomotionHand`、`extinguisherHand` 指向 XR Origin 的追踪点，并把灭火和急停动作拖到对应的 `InputActionReference`。输入源只输出 `OperatorIntent`，机器人控制、火焰桥接和 HUD 不需要改设备代码。
+
+`PicoThreePointAvatarDriver` 使用头部和左右控制器 Transform 驱动虚拟 Avatar，不依赖 PICO SDK 命名空间；安装 PICO SDK 后可直接复用 XR Origin 的追踪点，避免在没有 SDK 的机器上阻断编译。
+
+### EditMode 验收
+
+在 Unity Test Runner 中运行 `EditMode` 全部测试。当前覆盖输入安全门、输入映射、感知 JSON、感知火源重新触发、MJPEG 解析和 PICO 三点位姿。
+
 ## 当前增量
 
 - `FireRescue/Input/`：设备无关的操作意图、输入接口和一次性动作安全门控。
