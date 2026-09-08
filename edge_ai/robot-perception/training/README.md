@@ -20,6 +20,11 @@ python training/train.py --epochs 1 --imgsz 320 --batch 4 --device 0 --name smok
 python training/export.py --weights runs/perception/smoke/weights/best.pt --imgsz 320
 ```
 
+On Windows, the training entry point selects MKL's sequential threading layer
+to avoid duplicate OpenMP runtimes commonly present in Conda environments. It
+uses Polars' compatibility runtime and skips a known false-positive feature check
+that can reject `sse3` on supported Windows CPUs.
+
 Replace `--data` with the real YOLO dataset YAML after collecting TonyPi images.
 Weights, datasets, training runs, ONNX, and OM artifacts are intentionally ignored
 by Git.

@@ -37,6 +37,9 @@ def main():
     config_dir = PROJECT_ROOT / "runs" / "ultralytics-config"
     config_dir.mkdir(parents=True, exist_ok=True)
     os.environ.setdefault("YOLO_CONFIG_DIR", str(config_dir))
+    if os.name == "nt":
+        os.environ.setdefault("MKL_THREADING_LAYER", "SEQUENTIAL")
+        os.environ.setdefault("POLARS_SKIP_CPU_CHECK", "1")
     try:
         import torch
         from ultralytics import YOLO
