@@ -342,6 +342,7 @@ public class RobotSyncManager : MonoBehaviour
     public float sendHz = 30f;
     [Range(0f, 0.5f)] public float deadzone = 0.15f;
     [Range(0f, 2f)] public float turnScale = 1f;
+    public bool useOperatorIntentInput = false;
 
     [Header("XR 输入（把你项目里的动作拖进来）")]
     public InputActionReference moveAction;  // XRI LeftHand Locomotion / Move (Vector2)
@@ -381,6 +382,26 @@ public class RobotSyncManager : MonoBehaviour
 
     private readonly ConcurrentQueue<string> _recvQueue = new ConcurrentQueue<string>();
     private readonly ConcurrentQueue<string> _ballQueue = new ConcurrentQueue<string>();
+
+    public float CurrentLinearVelocity => _lastV;
+    public float CurrentSteer => _lastSteer;
+
+    public void ApplyOperatorMotion(float linearVelocity, float steer)
+    {
+        useOperatorIntentInput = true;
+        _lastV = Mathf.Clamp(linearVelocity, -1f, 1f);
+        _lastSteer = Mathf.Clamp(steer, -1f, 1f);
+    }
+
+    public void NotifyLocalActionTriggered()
+    {
+        onActionTriggered?.Invoke();
+    }
+
+    public void SendOperatorCommand(string cmd)
+    {
+        _ = SendImmediateCmd(cmd);
+    }
 
     // ⭐ 新增：按钮长按只触发一次的“上升沿”检测
     // private bool _buttonHeldPrev = false;
@@ -587,59 +608,63 @@ public class RobotSyncManager : MonoBehaviour
             catch (Exception e) { Debug.LogWarning("[RobotSync] onColor handler error: " + e.Message); }
         }
 
-        // Move
         Vector2 move = Vector2.zero;
-        if (moveAction != null && moveAction.action != null && moveAction.action.enabled)
-        {
-            try { move = moveAction.action.ReadValue<Vector2>(); } catch { move = Vector2.zero; }
-        }
-
-        // Turn（兼容 Vector2/float）
         Vector2 rotate = Vector2.zero;
-        if (turnAction != null && turnAction.action != null && turnAction.action.enabled)
-        {
-            var act = turnAction.action;
-            bool gotVector2 = false;
 
-            if (act.expectedControlType == "Vector2")
+        if (!useOperatorIntentInput)
+        {
+            // Move
+            if (moveAction != null && moveAction.action != null && moveAction.action.enabled)
             {
-                rotate = act.ReadValue<Vector2>();
-                gotVector2 = true;
+                try { move = moveAction.action.ReadValue<Vector2>(); } catch { move = Vector2.zero; }
             }
-            else
+
+            // Turn（兼容 Vector2/float）
+            if (turnAction != null && turnAction.action != null && turnAction.action.enabled)
             {
-                var ctrl = act.activeControl;
-                if (ctrl is StickControl || ctrl is Vector2Control)
+                var act = turnAction.action;
+                bool gotVector2 = false;
+
+                if (act.expectedControlType == "Vector2")
                 {
                     rotate = act.ReadValue<Vector2>();
                     gotVector2 = true;
                 }
-                else if (act.controls.Count > 0 && (act.controls[0] is StickControl || act.controls[0] is Vector2Control))
+                else
                 {
-                    rotate = act.ReadValue<Vector2>();
-                    gotVector2 = true;
+                    var ctrl = act.activeControl;
+                    if (ctrl is StickControl || ctrl is Vector2Control)
+                    {
+                        rotate = act.ReadValue<Vector2>();
+                        gotVector2 = true;
+                    }
+                    else if (act.controls.Count > 0 && (act.controls[0] is StickControl || act.controls[0] is Vector2Control))
+                    {
+                        rotate = act.ReadValue<Vector2>();
+                        gotVector2 = true;
+                    }
+                }
+
+                if (!gotVector2)
+                {
+                    float tx = 0f;
+                    try { tx = act.ReadValue<float>(); } catch { tx = 0f; }
+                    rotate = new Vector2(tx, 0f);
                 }
             }
 
-            if (!gotVector2)
+            // Gamepad 兜底
+            if (rotate == Vector2.zero)
             {
-                float tx = 0f;
-                try { tx = act.ReadValue<float>(); } catch { tx = 0f; }
-                rotate = new Vector2(tx, 0f);
+                var gp = Gamepad.current;
+                if (gp != null) rotate = gp.rightStick.ReadValue();
             }
-        }
 
-        // Gamepad 兜底
-        if (rotate == Vector2.zero)
-        {
-            var gp = Gamepad.current;
-            if (gp != null) rotate = gp.rightStick.ReadValue();
+            float manualV = Mathf.Abs(move.y) < deadzone ? 0f : move.y;
+            float manualSteer = Mathf.Abs(rotate.x) < deadzone ? 0f : Mathf.Clamp(rotate.x * turnScale, -1f, 1f);
+            _lastV = manualV;
+            _lastSteer = manualSteer;
         }
-
-        float manualV = Mathf.Abs(move.y) < deadzone ? 0f : move.y;
-        float manualSteer = Mathf.Abs(rotate.x) < deadzone ? 0f : Mathf.Clamp(rotate.x * turnScale, -1f, 1f);
-        _lastV = manualV;
-        _lastSteer = manualSteer;
 
         bool recoveryInputNeutral = Mathf.Abs(_lastV) <= recoveryNeutralThreshold
             && Mathf.Abs(_lastSteer) <= recoveryNeutralThreshold;

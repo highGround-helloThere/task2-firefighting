@@ -5,6 +5,7 @@
 - `RobotVideoReceiver.cs`、`RobotVideoSource.cs`：接收并显示机器人视频。
 - `PerceptionUdpReceiver.cs`、`PerceptionTelemetryMessage.cs`：接收并解析 Orange Pi 感知数据。
 - `PerceptionFireBridge.cs`：把识别结果连接到火焰事件。
+- `FireRescue/Input/OperatorIntentRobotBridge.cs`：把统一输入意图转换成机器人动作、一次性命令和 Avatar 状态。
 - `LightControl.cs`：生成和管理火焰。
 - `ExtinguisherSprayController.cs`：处理灭火器喷射和熄灭判定。
 
@@ -23,6 +24,8 @@
 
 PICO 设备接入时，把 `XrBodyIntentSource` 的 `head`、`locomotionHand`、`extinguisherHand` 指向 XR Origin 的追踪点，并把灭火和急停动作拖到对应的 `InputActionReference`。输入源只输出 `OperatorIntent`，机器人控制、火焰桥接和 HUD 不需要改设备代码。
 
+如果要直接驱动现场验收链路，把 `OperatorIntentRouter` 的 `onIntent` 绑定到 `OperatorIntentRobotBridge.OnIntent`，再把 `RobotSyncManager` 和 `RobotAvatarController` 拖到桥接器上即可。
+
 `PicoThreePointAvatarDriver` 使用头部和左右控制器 Transform 驱动虚拟 Avatar，不依赖 PICO SDK 命名空间；安装 PICO SDK 后可直接复用 XR Origin 的追踪点，避免在没有 SDK 的机器上阻断编译。
 
 ### EditMode 验收
@@ -32,7 +35,9 @@ PICO 设备接入时，把 `XrBodyIntentSource` 的 `head`、`locomotionHand`、
 ## 当前增量
 
 - `FireRescue/Input/`：设备无关的操作意图、输入接口和一次性动作安全门控。
+- `FireRescue/Input/OperatorIntentRobotBridge.cs`：把统一输入落到机器人控制和 Avatar 状态。
 - `Tests/Editor/OperatorIntentGateTests.cs`：覆盖移动心跳、灭火保持/冷却/回中和急停优先级。
+- `Tests/Editor/OperatorIntentRobotCommandMappingTests.cs`、`OperatorIntentRobotBridgeTests.cs`：覆盖意图到动作和桥接输出。
 - `Samples/XR Interaction Toolkit/3.1.1/Starter Assets/`：补回课程包缺失的 XRI 官方程序集定义，解决 `ComponentLocatorUtility<T>` 的 `CS0122` 错误。
 - `Editor/PicoLivePreviewPlayModeCleanup.cs`：PICO SDK 未安装时跳过 Live Preview 专用清理，保持无设备编译能力。
 
