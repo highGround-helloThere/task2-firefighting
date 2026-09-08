@@ -20,6 +20,7 @@ def parse_args():
     parser.add_argument("--port", type=int, default=6101)
     parser.add_argument("--duration", type=float, default=30.0)
     parser.add_argument("--hz", type=float, default=10.0)
+    parser.add_argument("--schema-version", type=int, choices=(1, 2), default=1)
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
@@ -45,6 +46,18 @@ def simulated_results():
             "frame_width": 640,
             "frame_height": 480,
             "processing_delay_ms": 4.0,
+            "fire_detected": False,
+            "fire_center_x": None,
+            "fire_center_y": None,
+            "fire_confidence": 0.0,
+            "fire_direction": "none",
+            "fire_aligned": False,
+            "dynamic_obstacle": False,
+            "obstacle_direction": "none",
+            "obstacle_confidence": 0.0,
+            "free_left": True,
+            "free_front": True,
+            "free_right": True,
         },
         {
             "detected": False,
@@ -59,6 +72,18 @@ def simulated_results():
             "frame_width": 640,
             "frame_height": 480,
             "processing_delay_ms": 5.0,
+            "fire_detected": False,
+            "fire_center_x": 302.0,
+            "fire_center_y": 238.0,
+            "fire_confidence": 0.62,
+            "fire_direction": "centered",
+            "fire_aligned": False,
+            "dynamic_obstacle": True,
+            "obstacle_direction": "left",
+            "obstacle_confidence": 0.78,
+            "free_left": False,
+            "free_front": True,
+            "free_right": True,
         },
         {
             "detected": True,
@@ -73,6 +98,18 @@ def simulated_results():
             "frame_width": 640,
             "frame_height": 480,
             "processing_delay_ms": 5.5,
+            "fire_detected": True,
+            "fire_center_x": 320.0,
+            "fire_center_y": 240.0,
+            "fire_confidence": 0.91,
+            "fire_direction": "centered",
+            "fire_aligned": True,
+            "dynamic_obstacle": True,
+            "obstacle_direction": "front",
+            "obstacle_confidence": 0.88,
+            "free_left": True,
+            "free_front": False,
+            "free_right": True,
         },
     )
 
@@ -86,7 +123,7 @@ def main():
                 "destination_host": args.host,
                 "destination_port": args.port,
                 "send_hz": args.hz,
-                "schema_version": 1,
+                "schema_version": args.schema_version,
                 "source": "telemetry_simulator",
             }
         }
@@ -97,9 +134,13 @@ def main():
     index = 0
 
     print(
-        "Sending schema-v1 perception telemetry to {}:{} for {:.1f} seconds "
+        "Sending schema-v{} perception telemetry to {}:{} for {:.1f} seconds "
         "(session_id={})".format(
-            args.host, args.port, args.duration, telemetry.session_id
+            args.schema_version,
+            args.host,
+            args.port,
+            args.duration,
+            telemetry.session_id,
         )
     )
     try:
@@ -115,7 +156,7 @@ def main():
                 )
                 print(
                     "seq={} state={} detected={}".format(
-                        telemetry._sequence, state, result["detected"]
+                        telemetry.sequence, state, result["detected"]
                     )
                 )
             index += 1

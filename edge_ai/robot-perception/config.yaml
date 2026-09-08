@@ -13,7 +13,7 @@ video:
   consecutive_read_failures_before_reconnect: 5
   open_timeout_milliseconds: 3000
   read_timeout_milliseconds: 2000
-  local_path: "data/demo.mp4"
+  local_path: "data/demo.avi"
   loop_local_video: false
   camera_index: 0
 
