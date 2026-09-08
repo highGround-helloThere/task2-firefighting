@@ -24,7 +24,7 @@
 
 PICO 设备接入时，把 `XrBodyIntentSource` 的 `head`、`locomotionHand`、`extinguisherHand` 指向 XR Origin 的追踪点，并把灭火和急停动作拖到对应的 `InputActionReference`。输入源只输出 `OperatorIntent`，机器人控制、火焰桥接和 HUD 不需要改设备代码。
 
-如果要直接驱动现场验收链路，把 `OperatorIntentRouter` 的 `onIntent` 绑定到 `OperatorIntentRobotBridge.OnIntent`，再把 `RobotSyncManager` 和 `RobotAvatarController` 拖到桥接器上即可。
+如果要直接驱动现场验收链路，给场景添加 `OperatorIntentRouter`、`OperatorIntentRobotBridge` 和输入源即可；桥接器会自动订阅路由器，并自动查找场景中的 `RobotSyncManager` 和 `RobotAvatarController`。也可以在 Inspector 中显式指定这些引用。
 
 `PicoThreePointAvatarDriver` 使用头部和左右控制器 Transform 驱动虚拟 Avatar，不依赖 PICO SDK 命名空间；安装 PICO SDK 后可直接复用 XR Origin 的追踪点，避免在没有 SDK 的机器上阻断编译。
 

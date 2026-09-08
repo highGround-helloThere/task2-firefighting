@@ -18,6 +18,7 @@ public sealed class OperatorIntentRobotBridge : MonoBehaviour
     [Header("目标")]
     public RobotSyncManager robotSyncManager;
     public RobotAvatarController avatarController;
+    public OperatorIntentRouter intentRouter;
 
     [Header("映射")]
     public OperatorIntentRobotCommandSettings commandSettings = new OperatorIntentRobotCommandSettings();
@@ -28,6 +29,36 @@ public sealed class OperatorIntentRobotBridge : MonoBehaviour
     public UnityEvent onLocalActionRequested = new UnityEvent();
 
     public OperatorIntentRobotCommand LastCommand { get; private set; }
+
+    private void Awake()
+    {
+        if (intentRouter == null)
+            intentRouter = GetComponent<OperatorIntentRouter>();
+
+        if (intentRouter == null)
+            intentRouter = FindFirstObjectByType<OperatorIntentRouter>();
+
+        if (robotSyncManager == null)
+            robotSyncManager = FindFirstObjectByType<RobotSyncManager>();
+
+        if (avatarController == null)
+            avatarController = FindFirstObjectByType<RobotAvatarController>();
+    }
+
+    private void OnEnable()
+    {
+        if (intentRouter != null)
+        {
+            intentRouter.onIntent.RemoveListener(OnIntent);
+            intentRouter.onIntent.AddListener(OnIntent);
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (intentRouter != null)
+            intentRouter.onIntent.RemoveListener(OnIntent);
+    }
 
     public void OnIntent(OperatorIntentKind intentKind)
     {
