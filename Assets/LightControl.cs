@@ -306,9 +306,13 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 
 public class LightControl : MonoBehaviour
 {
+    [Header("任务事件")]
+    public UnityEvent<string> onFireExtinguished = new UnityEvent<string>();
+    public UnityEvent onAllFiresExtinguished = new UnityEvent();
     [Header("灯光提示")]
     public Light pointLight;
     public float blinkInterval = 1.0f;
@@ -821,7 +825,12 @@ public class LightControl : MonoBehaviour
             _extinguishedTargets.Add(key);
 
         if (_activeFires.Count == 0)
+        {
             StopBlinking();
+            onAllFiresExtinguished?.Invoke();
+        }
+
+        onFireExtinguished?.Invoke(key);
 
         Debug.Log($"[LightControl] 火焰 {key} 已熄灭。");
     }

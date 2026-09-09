@@ -9,6 +9,7 @@ using UnityEngine.Events;
 
 public sealed class PerceptionUdpReceiver : MonoBehaviour
 {
+    public FireRescueNetworkConfig networkConfig;
     [Header("Orange Pi 感知遥测（仅接收）")]
     [SerializeField] private int listenPort = 6101;
     [SerializeField, Min(0.1f)] private float watchdogSeconds = 0.5f;
@@ -66,6 +67,8 @@ public sealed class PerceptionUdpReceiver : MonoBehaviour
     {
         if (_running)
             return;
+        if (networkConfig != null)
+            listenPort = networkConfig.perceptionPort;
         if (listenPort < 1 || listenPort > 65535)
         {
             Debug.LogError("[Perception UDP] Invalid listen port: " + listenPort);

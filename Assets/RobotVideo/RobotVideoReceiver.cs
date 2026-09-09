@@ -7,6 +7,7 @@ using UnityEngine.UI;
 
 public sealed class RobotVideoReceiver : MonoBehaviour
 {
+    public FireRescueNetworkConfig networkConfig;
     [Header("TonyPi 原厂视频")]
     public string robotIp = "192.168.137.106";
     [Min(1)] public int videoPort = 8080;
@@ -41,6 +42,11 @@ public sealed class RobotVideoReceiver : MonoBehaviour
 
     private void OnEnable()
     {
+        if (networkConfig != null)
+        {
+            robotIp = networkConfig.orangePiIp;
+            videoPort = networkConfig.videoPort;
+        }
         EnsureTargetImage();
         HttpClientHandler handler = new HttpClientHandler
         {

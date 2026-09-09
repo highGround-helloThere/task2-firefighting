@@ -334,6 +334,7 @@ using UnityEngine.XR;
 
 public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStateProvider
 {
+    public FireRescueNetworkConfig networkConfig;
     [Header("TCP 目标")]
     public string robotIP = "192.168.137.251";
     public int robotPort = 5075;
@@ -459,6 +460,11 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
 
     private void Start()
     {
+        if (networkConfig != null)
+        {
+            robotIP = networkConfig.robotIp;
+            robotPort = networkConfig.robotControlPort;
+        }
         _interval = 1f / Mathf.Max(1f, sendHz);
         _connectCts = new CancellationTokenSource();
         _ = ConnectLoop(_connectCts.Token);
