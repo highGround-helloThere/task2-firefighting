@@ -8,7 +8,7 @@ using UnityEngine;
 public sealed class PerceptionFireBridge : MonoBehaviour
 {
     [SerializeField] private RobotSyncManager robotSyncManager;
-    private bool _redSignalSent;
+    private readonly PerceptionFireLatch _fireLatch = new PerceptionFireLatch();
 
     private void Awake()
     {
@@ -18,8 +18,11 @@ public sealed class PerceptionFireBridge : MonoBehaviour
 
     public void HandleDetectionChanged(bool detected)
     {
-        if (!detected || _redSignalSent)
+        if (!detected)
+        {
+            _fireLatch.TryActivate(false);
             return;
+        }
 
         if (robotSyncManager == null)
         {
@@ -27,7 +30,9 @@ public sealed class PerceptionFireBridge : MonoBehaviour
             return;
         }
 
-        _redSignalSent = true;
+        if (!_fireLatch.TryActivate(true))
+            return;
+
         robotSyncManager.onColorSignalReceived?.Invoke("RED");
         Debug.Log("[Perception Fire] Confirmed detection -> RED");
     }
