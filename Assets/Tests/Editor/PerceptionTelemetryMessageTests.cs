@@ -29,10 +29,31 @@ public sealed class PerceptionTelemetryMessageTests
     public void RejectsUnexpectedSchema()
     {
         const string json =
-            "{\"type\":\"perception\",\"schema_version\":2," +
+            "{\"type\":\"perception\",\"schema_version\":3," +
             "\"session_id\":\"session-1\",\"seq\":1}";
         PerceptionTelemetryMessage message =
             JsonUtility.FromJson<PerceptionTelemetryMessage>(json);
         Assert.That(message.IsSupported(), Is.False);
+    }
+
+    [Test]
+    public void ParsesCourseSchemaV2FireAndObstacleFields()
+    {
+        const string json =
+            "{\"type\":\"perception\",\"schema_version\":2," +
+            "\"session_id\":\"session-2\",\"seq\":8," +
+            "\"video_ok\":true,\"fire_detected\":true," +
+            "\"fire_center_x\":418.2,\"fire_center_y\":236.0," +
+            "\"fire_confidence\":0.91,\"dynamic_obstacle\":true," +
+            "\"obstacle_direction\":\"front\",\"free_front\":false}";
+
+        PerceptionTelemetryMessage message = JsonUtility.FromJson<PerceptionTelemetryMessage>(json);
+
+        Assert.That(message.IsSupported(), Is.True);
+        Assert.That(message.FireDetected, Is.True);
+        Assert.That(message.FireCenterX, Is.EqualTo(418.2f));
+        Assert.That(message.FireConfidence, Is.EqualTo(0.91f));
+        Assert.That(message.dynamic_obstacle, Is.True);
+        Assert.That(message.free_front, Is.False);
     }
 }
