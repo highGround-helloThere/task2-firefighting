@@ -69,7 +69,7 @@ public sealed class VisualBonusEnhancement : MonoBehaviour
                 return ProjectToGround(candidate);
         }
 
-        Debug.LogWarning("[VisualBonus] 未找到无墙体穿越的路线，已隐藏路线指引。请在场景中烘焙 NavMesh 后重试。", this);
+        Debug.LogWarning("[VisualBonus] 未找到无墙体穿越的路线，已隐藏路线指引。请在场景中烘焙 NavMesh 后重试。");
         return null;
     }
 
