@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Unity.XR.PICO.LivePreview;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.XR;
@@ -42,7 +42,33 @@ internal static class PicoLivePreviewPlayModeCleanup
     {
         try
         {
-            PXR_PTApi.UPxr_PTSetSRPState(false);
+            const string apiTypeName = "Unity.XR.PICO.LivePreview.PXR_PTApi";
+            Type apiType = null;
+
+            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                apiType = assembly.GetType(apiTypeName, false);
+                if (apiType != null)
+                    break;
+            }
+
+            if (apiType == null)
+                return;
+
+            MethodInfo resetMethod = apiType.GetMethod(
+                "UPxr_PTSetSRPState",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[] { typeof(bool) },
+                null);
+
+            if (resetMethod == null)
+            {
+                Debug.LogWarning("[PicoLivePreviewPlayModeCleanup] PICO reset API was not found.");
+                return;
+            }
+
+            resetMethod.Invoke(null, new object[] { false });
         }
         catch (Exception exception)
         {
