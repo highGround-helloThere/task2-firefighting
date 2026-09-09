@@ -21,6 +21,8 @@ class UdpPerceptionTelemetry:
         send_hz = float(config.get("send_hz", 10.0))
         if send_hz <= 0:
             raise ValueError("telemetry udp send_hz must be greater than zero")
+        if self.schema_version not in (1, 2):
+            raise ValueError("telemetry udp schema_version must be 1 or 2")
         if not 1 <= self.destination_port <= 65535:
             raise ValueError("telemetry udp destination_port is invalid")
 
@@ -38,6 +40,10 @@ class UdpPerceptionTelemetry:
     @staticmethod
     def _number(value, default=-1.0):
         return float(value) if value is not None else float(default)
+
+    @property
+    def sequence(self):
+        return self._sequence
 
     def _send(self, payload, force=False):
         if not self.enabled or self._socket is None:
@@ -72,11 +78,11 @@ class UdpPerceptionTelemetry:
         self._last_emit = now
         return True
 
-    def emit_detection(self, result, force=False):
+    def _v1_detection_payload(self, result):
         detected = bool(result.get("detected"))
         candidate = bool(result.get("candidate_detected"))
         state = "detected" if detected else ("candidate" if candidate else "clear")
-        payload = {
+        return {
             "state": state,
             "video_ok": True,
             "detected": detected,
@@ -91,14 +97,53 @@ class UdpPerceptionTelemetry:
             "frame_width": int(result.get("frame_width", 0)),
             "frame_height": int(result.get("frame_height", 0)),
             "processing_ms": self._number(
-                result.get("processing_delay_ms"), 0.0
+                result.get("processing_ms", result.get("processing_delay_ms")), 0.0
             ),
         }
+
+    def _v2_detection_payload(self, result):
+        return {
+            "video_ok": True,
+            "fire_detected": bool(
+                result.get("fire_detected", result.get("detected", False))
+            ),
+            "fire_center_x": self._number(
+                result.get("fire_center_x", result.get("center_x"))
+            ),
+            "fire_center_y": self._number(
+                result.get("fire_center_y", result.get("center_y"))
+            ),
+            "fire_confidence": self._number(
+                result.get("fire_confidence", result.get("score")), 0.0
+            ),
+            "fire_direction": str(result.get("fire_direction", "none")),
+            "fire_aligned": bool(result.get("fire_aligned", False)),
+            "dynamic_obstacle": bool(result.get("dynamic_obstacle", False)),
+            "obstacle_direction": str(result.get("obstacle_direction", "none")),
+            "obstacle_confidence": self._number(
+                result.get("obstacle_confidence"), 0.0
+            ),
+            "free_left": bool(result.get("free_left", True)),
+            "free_front": bool(result.get("free_front", True)),
+            "free_right": bool(result.get("free_right", True)),
+            "frame_width": int(result.get("frame_width", 0)),
+            "frame_height": int(result.get("frame_height", 0)),
+            "processing_ms": self._number(
+                result.get("processing_ms", result.get("processing_delay_ms")), 0.0
+            ),
+        }
+
+    def emit_detection(self, result, force=False):
+        payload = (
+            self._v1_detection_payload(result)
+            if self.schema_version == 1
+            else self._v2_detection_payload(result)
+        )
         return self._send(payload, force=force)
 
     def emit_status(self, state, video_ok, force=False):
-        return self._send(
-            {
+        if self.schema_version == 1:
+            payload = {
                 "state": str(state),
                 "video_ok": bool(video_ok),
                 "detected": False,
@@ -113,9 +158,28 @@ class UdpPerceptionTelemetry:
                 "frame_width": 0,
                 "frame_height": 0,
                 "processing_ms": 0.0,
-            },
-            force=force,
-        )
+            }
+        else:
+            payload = {
+                "video_ok": bool(video_ok),
+                "fire_detected": False,
+                "fire_center_x": -1.0,
+                "fire_center_y": -1.0,
+                "fire_confidence": 0.0,
+                "fire_direction": "none",
+                "fire_aligned": False,
+                "dynamic_obstacle": False,
+                "obstacle_direction": "none",
+                "obstacle_confidence": 0.0,
+                "free_left": True,
+                "free_front": True,
+                "free_right": True,
+                "frame_width": 0,
+                "frame_height": 0,
+                "processing_ms": 0.0,
+                "status": str(state),
+            }
+        return self._send(payload, force=force)
 
     def close(self):
         if self._owns_socket and self._socket is not None:

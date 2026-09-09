@@ -3,6 +3,7 @@ project:
   mode: "shadow_perception"
 
 video:
+  source: "mjpeg"
   url: "http://192.168.137.157:8080/?action=stream"
   urls:
     - "http://192.168.137.157:8080/?action=stream"
@@ -10,6 +11,11 @@ video:
     - "http://192.168.149.1:8080/?action=stream"
   reconnect_delay_seconds: 1.0
   consecutive_read_failures_before_reconnect: 5
+  open_timeout_milliseconds: 3000
+  read_timeout_milliseconds: 2000
+  local_path: "data/demo.avi"
+  loop_local_video: false
+  camera_index: 0
 
 video_proxy:
   enabled: true
@@ -18,6 +24,7 @@ video_proxy:
   jpeg_quality: 85
 
 detection:
+  backend: "baseline"
   target: "red_ball"
   color_space: "LAB"
   lab_min: [55, 145, 118]
@@ -32,6 +39,25 @@ detection:
   maximum_aspect_ratio: 1.67
   confirmation_frames: 3
   release_frames: 3
+  stale_timeout_seconds: 1.0
+  fire_left_ratio: 0.40
+  fire_right_ratio: 0.60
+  obstacle_left_ratio: 0.3333
+  obstacle_right_ratio: 0.6667
+  obstacle_confirmation_frames: 1
+  obstacle_release_frames: 3
+  occupancy_roi_top_ratio: 0.50
+  occupancy_threshold: 0.06
+  free_clear_frames: 3
+  model:
+    path: "weights/best.pt"
+    confidence: 0.25
+    image_size: 640
+    device: "auto"
+    fire_classes: ["fire_marker"]
+    dynamic_classes: ["dynamic_obstacle", "person"]
+    static_classes: ["static_obstacle", "obstacle"]
+    baseline_fire_fallback: true
 
 telemetry:
   minimum_interval_seconds: 0.25

@@ -20,6 +20,7 @@ datasets/
 data/
 weights/
 checkpoints/
+runs/
 *.pt
 *.pth
 *.onnx
