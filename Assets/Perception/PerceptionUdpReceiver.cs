@@ -137,7 +137,7 @@ public sealed class PerceptionUdpReceiver : MonoBehaviour
             _lastPacketTime = Time.realtimeSinceStartup;
             LatestMessage = message;
             SetConnected(true);
-            SetDetected(message.video_ok && message.detected);
+            SetDetected(message.video_ok && message.FireDetected);
             onTelemetry?.Invoke(message);
 
             if (logPackets)

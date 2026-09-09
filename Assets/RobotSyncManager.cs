@@ -332,7 +332,7 @@ using UnityEngine.InputSystem.Controls;
 using UnityEngine.Events;
 using UnityEngine.XR;
 
-public class RobotSyncManager : MonoBehaviour
+public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStateProvider
 {
     [Header("TCP 目标")]
     public string robotIP = "192.168.137.251";
@@ -385,12 +385,25 @@ public class RobotSyncManager : MonoBehaviour
 
     public float CurrentLinearVelocity => _lastV;
     public float CurrentSteer => _lastSteer;
+    public bool IsConnected => _client != null && _client.Connected && _stream != null;
+    public RobotAvatarState ConfirmedState { get; private set; } = RobotAvatarState.Stand;
+    public event Action<RobotAvatarState> ConfirmedStateChanged;
 
     public void ApplyOperatorMotion(float linearVelocity, float steer)
     {
         useOperatorIntentInput = true;
         _lastV = Mathf.Clamp(linearVelocity, -1f, 1f);
         _lastSteer = Mathf.Clamp(steer, -1f, 1f);
+    }
+
+    void IRobotCommandSink.ApplyMotion(float linearVelocity, float steer) => ApplyOperatorMotion(linearVelocity, steer);
+    void IRobotCommandSink.SendAction(string command) => SendOperatorCommand(command);
+
+    public void PublishConfirmedState(RobotAvatarState state)
+    {
+        if (ConfirmedState == state) return;
+        ConfirmedState = state;
+        ConfirmedStateChanged?.Invoke(state);
     }
 
     public void NotifyLocalActionTriggered()

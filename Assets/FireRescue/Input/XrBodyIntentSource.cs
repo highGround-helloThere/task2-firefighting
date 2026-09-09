@@ -9,12 +9,15 @@ public sealed class XrBodyIntentSource : MonoBehaviour, IOperatorIntentSource
     public Transform head;
     public Transform locomotionHand;
     public Transform extinguisherHand;
+    public Transform otherHand;
 
     [Header("自然动作阈值")]
     [Min(0.01f)] public float forwardReach = 0.18f;
     [Min(0.01f)] public float sideReach = 0.16f;
     [Range(0f, 1f)] public float triggerThreshold = 0.25f;
     [Range(0f, 1f)] public float deadzone = 0.15f;
+    [Min(0.01f)] public float emergencyHandHeight = 0.22f;
+    [Min(0.01f)] public float emergencyHandSeparation = 0.3f;
 
     [Header("输入动作")]
     public InputActionReference extinguishAction;
@@ -42,7 +45,7 @@ public sealed class XrBodyIntentSource : MonoBehaviour, IOperatorIntentSource
 
     public OperatorIntent ReadIntent()
     {
-        bool emergencyStop = ReadPressed(emergencyStopAction);
+        bool emergencyStop = ReadPressed(emergencyStopAction) || ReadTwoHandEmergencyGesture();
         bool extinguish = ReadPressed(extinguishAction);
         Vector2 movement = ReadBodyMovement();
         OperatorIntentKind kind = OperatorIntentMapping.FromInput(
@@ -51,6 +54,15 @@ public sealed class XrBodyIntentSource : MonoBehaviour, IOperatorIntentSource
             emergencyStop,
             deadzone);
         return OperatorIntentMapping.Create(kind, Time.unscaledTimeAsDouble);
+    }
+
+    private bool ReadTwoHandEmergencyGesture()
+    {
+        if (head == null || locomotionHand == null || otherHand == null) return false;
+        Vector3 left = head.InverseTransformPoint(locomotionHand.position);
+        Vector3 right = head.InverseTransformPoint(otherHand.position);
+        return left.y >= emergencyHandHeight && right.y >= emergencyHandHeight
+            && Mathf.Abs(left.x - right.x) >= emergencyHandSeparation;
     }
 
     private Vector2 ReadBodyMovement()

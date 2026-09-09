@@ -21940,9 +21940,9 @@ MonoBehaviour:
   targetImage: {fileID: 0}
   autoCreateWindow: 1
   worldSpaceForVr: 1
-  windowSize: {x: 360, y: 202.5}
+  windowSize: {x: 640, y: 360}
   topRightMargin: {x: 24, y: 24}
-  worldSpaceLocalPosition: {x: 0.45, y: 0.25, z: 1.2}
+  worldSpaceLocalPosition: {x: 0, y: 0.25, z: 1.2}
   worldSpaceScale: 0.001
   canvasSortOrder: 50
 --- !u!4 &1043904664

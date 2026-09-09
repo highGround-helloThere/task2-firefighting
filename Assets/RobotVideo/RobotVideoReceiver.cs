@@ -19,9 +19,9 @@ public sealed class RobotVideoReceiver : MonoBehaviour
     public RawImage targetImage;
     public bool autoCreateWindow = true;
     public bool worldSpaceForVr = true;
-    public Vector2 windowSize = new Vector2(360f, 202.5f);
+    public Vector2 windowSize = new Vector2(640f, 360f);
     public Vector2 topRightMargin = new Vector2(24f, 24f);
-    public Vector3 worldSpaceLocalPosition = new Vector3(0.45f, 0.25f, 1.2f);
+    public Vector3 worldSpaceLocalPosition = new Vector3(0f, 0.25f, 1.2f);
     [Min(0.0001f)] public float worldSpaceScale = 0.001f;
     public int canvasSortOrder = 50;
 
@@ -34,6 +34,10 @@ public sealed class RobotVideoReceiver : MonoBehaviour
     private Task streamTask;
     private string lastError;
     private string pendingError;
+    public bool IsConnected { get; private set; }
+    public string LastError => lastError;
+    public float LastFrameAgeSeconds => currentTexture == null ? float.PositiveInfinity : Time.unscaledTime - lastFrameAt;
+    private float lastFrameAt = float.NegativeInfinity;
 
     private void OnEnable()
     {
@@ -75,6 +79,7 @@ public sealed class RobotVideoReceiver : MonoBehaviour
         }
 
         pendingFrames.Clear();
+        IsConnected = false;
 
         if (generatedCanvas != null)
         {
@@ -89,6 +94,7 @@ public sealed class RobotVideoReceiver : MonoBehaviour
         if (!string.IsNullOrEmpty(error) && error != lastError)
         {
             lastError = error;
+            IsConnected = false;
             Debug.LogWarning(string.Format("[ROBOT VIDEO] {0}", error));
         }
 
@@ -104,6 +110,7 @@ public sealed class RobotVideoReceiver : MonoBehaviour
         }
 
         ReplaceTexture(nextTexture);
+        IsConnected = true;
         lastError = null;
     }
 
@@ -250,6 +257,7 @@ public sealed class RobotVideoReceiver : MonoBehaviour
 
         if (previousTexture != null)
             Destroy(previousTexture);
+        lastFrameAt = Time.unscaledTime;
     }
 
     private void EnsureTargetImage()
@@ -288,13 +296,12 @@ public sealed class RobotVideoReceiver : MonoBehaviour
         window.transform.SetParent(generatedCanvas.transform, false);
 
         RectTransform windowRect = window.GetComponent<RectTransform>();
-        windowRect.anchorMin = useWorldSpace ? new Vector2(0.5f, 0.5f) : new Vector2(1f, 1f);
-        windowRect.anchorMax = useWorldSpace ? new Vector2(0.5f, 0.5f) : new Vector2(1f, 1f);
-        windowRect.pivot = useWorldSpace ? new Vector2(0.5f, 0.5f) : new Vector2(1f, 1f);
+        Vector2 screenAnchor = new Vector2(0.5f, 0.78f);
+        windowRect.anchorMin = useWorldSpace ? new Vector2(0.5f, 0.5f) : screenAnchor;
+        windowRect.anchorMax = useWorldSpace ? new Vector2(0.5f, 0.5f) : screenAnchor;
+        windowRect.pivot = new Vector2(0.5f, 0.5f);
         windowRect.sizeDelta = windowSize;
-        windowRect.anchoredPosition = useWorldSpace
-            ? Vector2.zero
-            : new Vector2(-topRightMargin.x, -topRightMargin.y);
+        windowRect.anchoredPosition = Vector2.zero;
 
         Image background = window.GetComponent<Image>();
         background.color = new Color(0.03f, 0.04f, 0.05f, 0.92f);
