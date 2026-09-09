@@ -386,7 +386,20 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
 
     public float CurrentLinearVelocity => _lastV;
     public float CurrentSteer => _lastSteer;
-    public bool IsConnected => _client != null && _client.Connected && _stream != null;
+    public bool IsConnected
+    {
+        get
+        {
+            try
+            {
+                return _client != null && _stream != null && _client.Connected;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
     public RobotAvatarState ConfirmedState { get; private set; } = RobotAvatarState.Stand;
     public event Action<RobotAvatarState> ConfirmedStateChanged;
 
