@@ -5,9 +5,7 @@ using UnityEngine.SceneManagement;
 public sealed class VisualBonusEnhancement : MonoBehaviour
 {
     private Vector3[] route;
-    private GameObject dynamicObstacle;
-    private Vector3 obstacleStart;
-    private Vector3 obstacleEnd;
+    private GameObject staticObstacle;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -21,15 +19,7 @@ public sealed class VisualBonusEnhancement : MonoBehaviour
         route = BuildRouteFromScene();
         if (route != null && route.Length > 1)
             CreateRouteLine();
-        CreateTrainingProps();
-        CreateDynamicObstacle();
-    }
-
-    private void Update()
-    {
-        if (dynamicObstacle == null) return;
-        float progress = (Mathf.Sin(Time.time * 0.75f) + 1f) * 0.5f;
-        dynamicObstacle.transform.position = Vector3.Lerp(obstacleStart, obstacleEnd, progress);
+        CreateStaticObstacle();
     }
 
     private void CreateRouteLine()
@@ -133,24 +123,13 @@ public sealed class VisualBonusEnhancement : MonoBehaviour
         return points;
     }
 
-    private void CreateTrainingProps()
-    {
-        Material orange = MaterialFor(new Color(0.95f, 0.3f, 0.03f));
-        Material cyan = MaterialFor(new Color(0.04f, 0.65f, 0.72f));
-        if (route == null || route.Length < 2) return;
-        Vector3 first = route[Mathf.Min(1, route.Length - 1)];
-        Vector3 second = route[Mathf.Max(1, route.Length - 2)];
-        CreateProp("Visual Bonus Safety Cone A", first + Vector3.up * 0.45f, new Vector3(0.55f, 0.9f, 0.55f), orange);
-        CreateProp("Visual Bonus Safety Cone B", second + Vector3.up * 0.45f, new Vector3(0.55f, 0.9f, 0.55f), orange);
-        CreateProp("Visual Bonus Checkpoint", route[route.Length - 1] + Vector3.up * 0.15f, new Vector3(1.5f, 0.3f, 0.3f), cyan);
-    }
-
-    private void CreateDynamicObstacle()
+    private void CreateStaticObstacle()
     {
         if (route == null || route.Length < 3) return;
-        obstacleStart = route[1] + Vector3.up * 0.6f;
-        obstacleEnd = route[route.Length - 2] + Vector3.up * 0.6f;
-        dynamicObstacle = CreateProp("Visual Bonus Dynamic Obstacle", obstacleStart, new Vector3(1.2f, 1.2f, 1.2f), MaterialFor(new Color(0.95f, 0.12f, 0.04f)));
+        Vector3 position = route[route.Length / 2] + Vector3.up * 0.6f;
+        staticObstacle = CreateProp("Visual Bonus Static Yellow Obstacle", position, new Vector3(1.2f, 1.2f, 1.2f), MaterialFor(new Color(1f, 0.82f, 0.05f)));
+        if (staticObstacle != null)
+            staticObstacle.isStatic = true;
     }
 
     private static GameObject CreateProp(string name, Vector3 position, Vector3 scale, Material material)
