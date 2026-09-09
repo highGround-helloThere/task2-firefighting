@@ -8,9 +8,6 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/FireRescue/Scenes/FireRescue_Main.unity
     guid: ec8f4ce75488f694b923efd522974416
-  - enabled: 1
-    path: Assets/FireRescue/Scenes/FireRescue_Training.unity
-    guid: f4f4d2f80a0b4cbdaaa7000000000001
   m_configObjects:
     Unity.XR.PXR.Settings: {fileID: 11400000, guid: 3cc2dcd6c32c5b943a263448af3b9a6f, type: 2}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: f2ce330a50d338746bb616932a3cfc97, type: 2}
