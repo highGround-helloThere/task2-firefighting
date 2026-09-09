@@ -99,7 +99,7 @@ public sealed class FireRescueHud : MonoBehaviour, IAutonomousNavigationProvider
         textRect.anchorMin = Vector2.zero; textRect.anchorMax = Vector2.one;
         textRect.offsetMin = new Vector2(18f, 14f); textRect.offsetMax = new Vector2(-18f, -14f);
         statusText = textObject.GetComponent<Text>();
-        statusText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        statusText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         statusText.fontSize = 22; statusText.color = Color.white;
         statusText.alignment = TextAnchor.UpperLeft; statusText.horizontalOverflow = HorizontalWrapMode.Wrap;
     }
