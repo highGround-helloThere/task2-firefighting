@@ -336,7 +336,7 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
 {
     public FireRescueNetworkConfig networkConfig;
     [Header("TCP 目标")]
-    public string robotIP = "192.168.137.251";
+    public string robotIP = "192.168.137.121";
     public int robotPort = 5075;
 
     [Header("发送频率与输入")]
@@ -344,6 +344,12 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
     [Range(0f, 0.5f)] public float deadzone = 0.15f;
     [Range(0f, 2f)] public float turnScale = 1f;
     public bool useOperatorIntentInput = false;
+
+    [Header("Orange Pi 自主控制")]
+    [SerializeField] private bool autonomyEnabled;
+    [Min(0.1f)] public float autonomyWatchdogSeconds = 0.6f;
+    [Range(0f, 0.5f)] public float autonomyTakeoverThreshold = 0.2f;
+    public bool AutonomyEnabled => autonomyEnabled;
 
     [Header("XR 输入（把你项目里的动作拖进来）")]
     public InputActionReference moveAction;  // XRI LeftHand Locomotion / Move (Vector2)
@@ -380,6 +386,10 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
 
     private volatile float _lastV, _lastSteer;
     private volatile bool _isGrabbing;
+    private float _autonomyV;
+    private float _autonomySteer;
+    private float _lastAutonomyUpdate = float.NegativeInfinity;
+    private bool _autoExtinguishPrevious;
 
     private readonly ConcurrentQueue<string> _recvQueue = new ConcurrentQueue<string>();
     private readonly ConcurrentQueue<string> _ballQueue = new ConcurrentQueue<string>();
@@ -627,6 +637,9 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
             Debug.Log("[TCP] Recv : RED (keyboard debug)");
         }
 
+        if (enableKeyboardButtonDebug && Keyboard.current != null && Keyboard.current.uKey.wasPressedThisFrame)
+            SetAutonomousMode(!autonomyEnabled);
+
         while (_ballQueue.TryDequeue(out var targetId))
         {
             try { onBallDetected?.Invoke(targetId); }
@@ -643,7 +656,7 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
         Vector2 move = Vector2.zero;
         Vector2 rotate = Vector2.zero;
 
-        if (!useOperatorIntentInput)
+        if (!useOperatorIntentInput || autonomyEnabled)
         {
             // Move
             if (moveAction != null && moveAction.action != null && moveAction.action.enabled)
@@ -694,8 +707,25 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
 
             float manualV = Mathf.Abs(move.y) < deadzone ? 0f : move.y;
             float manualSteer = Mathf.Abs(rotate.x) < deadzone ? 0f : Mathf.Clamp(rotate.x * turnScale, -1f, 1f);
-            _lastV = manualV;
-            _lastSteer = manualSteer;
+            if (autonomyEnabled && (Mathf.Abs(manualV) > autonomyTakeoverThreshold
+                || Mathf.Abs(manualSteer) > autonomyTakeoverThreshold))
+            {
+                SetAutonomousMode(false);
+                Debug.Log("[AUTO] Manual stick takeover");
+            }
+
+            if (!autonomyEnabled)
+            {
+                _lastV = manualV;
+                _lastSteer = manualSteer;
+            }
+        }
+
+        if (autonomyEnabled)
+        {
+            bool autonomyFresh = Time.unscaledTime - _lastAutonomyUpdate <= autonomyWatchdogSeconds;
+            _lastV = autonomyFresh ? _autonomyV : 0f;
+            _lastSteer = autonomyFresh ? _autonomySteer : 0f;
         }
 
         bool recoveryInputNeutral = Mathf.Abs(_lastV) <= recoveryNeutralThreshold
@@ -793,6 +823,49 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
         {
             return false;
         }
+    }
+
+    public void SetAutonomousMode(bool enabled)
+    {
+        autonomyEnabled = enabled;
+        _lastV = 0f;
+        _lastSteer = 0f;
+        _autoExtinguishPrevious = false;
+        if (!enabled)
+        {
+            _autonomyV = 0f;
+            _autonomySteer = 0f;
+        }
+        Debug.Log("[AUTO] " + (enabled ? "Enabled" : "Disabled"));
+    }
+
+    public void ApplyAutonomousTelemetry(PerceptionTelemetryMessage message)
+    {
+        if (message == null || !message.autonomy_valid)
+        {
+            InvalidateAutonomousTelemetry();
+            return;
+        }
+
+        _autonomyV = Mathf.Clamp(message.auto_v, -1f, 1f);
+        _autonomySteer = Mathf.Clamp(message.auto_steer, -1f, 1f);
+        _lastAutonomyUpdate = Time.unscaledTime;
+
+        bool extinguishEdge = message.auto_extinguish && !_autoExtinguishPrevious;
+        _autoExtinguishPrevious = message.auto_extinguish;
+        if (autonomyEnabled && extinguishEdge)
+        {
+            onActionTriggered?.Invoke();
+            _ = SendImmediateCmd(rightGripCommend);
+        }
+    }
+
+    public void InvalidateAutonomousTelemetry()
+    {
+        _autonomyV = 0f;
+        _autonomySteer = 0f;
+        _lastAutonomyUpdate = float.NegativeInfinity;
+        _autoExtinguishPrevious = false;
     }
 
     private async Task SendImmediateCmd(string cmd)

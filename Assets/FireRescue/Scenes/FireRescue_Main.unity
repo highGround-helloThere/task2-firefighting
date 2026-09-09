@@ -7268,7 +7268,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3787325519624275862, guid: 358fc85bd747251459b9957bb54472bc, type: 3}
       propertyPath: robotIP
-      value: 192.168.137.251
+      value: 192.168.137.121
       objectReference: {fileID: 0}
     - target: {fileID: 5366605516487023876, guid: 358fc85bd747251459b9957bb54472bc, type: 3}
       propertyPath: m_Name
@@ -9169,6 +9169,7 @@ GameObject:
   - component: {fileID: 439730595}
   - component: {fileID: 439730594}
   - component: {fileID: 439730596}
+  - component: {fileID: 439730597}
   m_Layer: 0
   m_Name: OrangePi
   m_TagString: Untagged
@@ -9212,6 +9213,21 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+--- !u!114 &439730597
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 439730593}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bb5c98e5b1a4b8db6d8e6d0f3a1c2e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  perceptionReceiver: {fileID: 439730594}
+  robotSyncManager: {fileID: 1941890024}
+  startInAutonomousMode: 0
 --- !u!4 &439730595
 Transform:
   m_ObjectHideFlags: 0
@@ -21931,7 +21947,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f7714176cce0ddb448e004d5c407472b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  robotIp: 192.168.137.251
+  robotIp: 192.168.137.121
   videoPort: 8080
   reconnectDelaySeconds: 1
   fallbackSnapshotFps: 8

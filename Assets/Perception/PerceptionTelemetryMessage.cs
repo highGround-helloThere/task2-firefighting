@@ -33,6 +33,11 @@ public sealed class PerceptionTelemetryMessage
     public bool free_left;
     public bool free_front;
     public bool free_right;
+    public bool autonomy_valid;
+    public float auto_v;
+    public float auto_steer;
+    public bool auto_extinguish;
+    public string auto_state;
 
     public bool IsSupported()
     {
