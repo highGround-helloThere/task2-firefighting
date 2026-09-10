@@ -32,6 +32,8 @@ public sealed class OperatorIntentRobotBridge : MonoBehaviour
 
     public OperatorIntentRobotCommand LastCommand { get; private set; }
 
+    private bool ownsSimulatedStateProvider;
+
     private void Awake()
     {
         if (intentRouter == null)
@@ -45,10 +47,7 @@ public sealed class OperatorIntentRobotBridge : MonoBehaviour
 
         if (avatarController == null)
             avatarController = FindFirstObjectByType<RobotAvatarController>();
-        if (simulatedStateProvider == null)
-            simulatedStateProvider = FindFirstObjectByType<SimulatedRobotStateProvider>();
-        if (simulatedStateProvider == null && enableSimulationWhenDisconnected)
-            simulatedStateProvider = new GameObject("Simulated Robot State").AddComponent<SimulatedRobotStateProvider>();
+        EnsureSimulatedStateProvider();
     }
 
     private void OnEnable()
@@ -80,7 +79,12 @@ public sealed class OperatorIntentRobotBridge : MonoBehaviour
 
         bool useSimulation = enableSimulationWhenDisconnected && (robotSyncManager == null || !robotSyncManager.IsConnected);
         if (useSimulation)
+        {
+            EnsureSimulatedStateProvider();
             simulatedStateProvider?.ApplyMotion(LastCommand.linearVelocity, LastCommand.steer);
+            if (simulatedStateProvider != null)
+                OnConfirmedState(simulatedStateProvider.ConfirmedState);
+        }
         else
             robotSyncManager?.ApplyOperatorMotion(LastCommand.linearVelocity, LastCommand.steer);
         onMotionCommand?.Invoke(LastCommand.linearVelocity, LastCommand.steer);
@@ -98,6 +102,35 @@ public sealed class OperatorIntentRobotBridge : MonoBehaviour
             onImmediateCommand?.Invoke(LastCommand.immediateCommand);
         }
 
+    }
+
+    private void EnsureSimulatedStateProvider()
+    {
+        if (!enableSimulationWhenDisconnected)
+            return;
+
+        if (simulatedStateProvider == null)
+            simulatedStateProvider = FindFirstObjectByType<SimulatedRobotStateProvider>();
+
+        if (simulatedStateProvider == null)
+        {
+            simulatedStateProvider = new GameObject("Simulated Robot State").AddComponent<SimulatedRobotStateProvider>();
+            ownsSimulatedStateProvider = true;
+        }
+
+        simulatedStateProvider.ConfirmedStateChanged -= OnConfirmedState;
+        simulatedStateProvider.ConfirmedStateChanged += OnConfirmedState;
+    }
+
+    private void OnDestroy()
+    {
+        if (!ownsSimulatedStateProvider || simulatedStateProvider == null)
+            return;
+
+        if (Application.isPlaying)
+            Destroy(simulatedStateProvider.gameObject);
+        else
+            DestroyImmediate(simulatedStateProvider.gameObject);
     }
 
     private void OnConfirmedState(RobotAvatarState state)

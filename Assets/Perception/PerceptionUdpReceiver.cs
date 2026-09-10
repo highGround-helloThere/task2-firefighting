@@ -82,6 +82,7 @@ public sealed class PerceptionUdpReceiver : MonoBehaviour
             Name = "Perception-UDP-Receiver"
         };
         _receiverThread.Start();
+        Debug.Log($"[Perception UDP] Listening on 0.0.0.0:{listenPort}");
     }
 
     private void ReceiveLoop()
@@ -161,6 +162,9 @@ public sealed class PerceptionUdpReceiver : MonoBehaviour
         if (IsConnected == value)
             return;
         IsConnected = value;
+        Debug.Log(value
+            ? $"[Perception UDP] Connected on port {listenPort}"
+            : $"[Perception UDP] Disconnected on port {listenPort}");
         onConnectionChanged?.Invoke(value);
     }
 

@@ -15,6 +15,7 @@ public sealed class FireRescueHud : MonoBehaviour, IAutonomousNavigationProvider
     private RectTransform videoRect;
     private PerceptionUdpReceiver perception;
     private RobotVideoReceiver video;
+    private RobotSyncManager robot;
     private OperatorIntentRouter router;
     private LightControl fireControl;
     private bool emergency;
@@ -31,6 +32,7 @@ public sealed class FireRescueHud : MonoBehaviour, IAutonomousNavigationProvider
     {
         perception = FindFirstObjectByType<PerceptionUdpReceiver>();
         video = FindFirstObjectByType<RobotVideoReceiver>();
+        robot = FindFirstObjectByType<RobotSyncManager>();
         router = FindFirstObjectByType<OperatorIntentRouter>();
         fireControl = FindFirstObjectByType<LightControl>();
         BuildView();
@@ -41,9 +43,12 @@ public sealed class FireRescueHud : MonoBehaviour, IAutonomousNavigationProvider
 
     private void Update()
     {
-        if (Keyboard.current != null && Keyboard.current.mKey.wasPressedThisFrame && !emergency)
-            ControlMode = ControlMode == FireRescueControlMode.Auto ? FireRescueControlMode.Manual : FireRescueControlMode.Auto;
-        if (emergency) ControlMode = FireRescueControlMode.EmergencyStop;
+        if (emergency)
+            ControlMode = FireRescueControlMode.EmergencyStop;
+        else if (robot == null || !robot.IsConnected)
+            ControlMode = FireRescueControlMode.Disconnected;
+        else
+            ControlMode = robot.AutonomyEnabled ? FireRescueControlMode.Auto : FireRescueControlMode.Manual;
         RenderStatus();
     }
 
@@ -77,7 +82,7 @@ public sealed class FireRescueHud : MonoBehaviour, IAutonomousNavigationProvider
         RectTransform rect = panel.GetComponent<RectTransform>();
         rect.anchorMin = new Vector2(0f, 1f); rect.anchorMax = new Vector2(0f, 1f);
         rect.pivot = new Vector2(0f, 1f); rect.anchoredPosition = new Vector2(24f, -24f);
-        rect.sizeDelta = new Vector2(520f, 220f);
+        rect.sizeDelta = new Vector2(620f, 250f);
         panel.GetComponent<Image>().color = new Color(0.02f, 0.04f, 0.05f, 0.9f);
 
         GameObject detectionObject = new GameObject("FireDetectionFrame", typeof(RectTransform), typeof(Image), typeof(Outline));
@@ -109,6 +114,7 @@ public sealed class FireRescueHud : MonoBehaviour, IAutonomousNavigationProvider
         if (statusText == null) return;
         bool perceptionOnline = perception != null && perception.IsConnected;
         bool videoOnline = video != null && video.IsConnected;
+        bool robotOnline = robot != null && robot.IsConnected;
         bool detected = perception != null && perception.IsDetected;
         string obstacle = latest != null && latest.dynamic_obstacle ? "障碍物警告: " + latest.obstacle_direction : "障碍物: 无";
         float confidence = latest == null ? 0f : latest.FireConfidence;
@@ -118,11 +124,13 @@ public sealed class FireRescueHud : MonoBehaviour, IAutonomousNavigationProvider
         var builder = new StringBuilder();
         builder.AppendLine("救火任务监控");
         builder.AppendLine("模式: " + ControlMode + "    导航: " + NavigationState);
-        builder.AppendLine("视频: " + (videoOnline ? "在线" : "断线") + "    感知: " + (perceptionOnline ? "在线" : "断线"));
+        string robotEndpoint = robot == null ? "-" : robot.robotIP + ":" + robot.robotPort;
+        builder.AppendLine("机器人TCP: " + (robotOnline ? "在线" : "断线") + "    目标: " + robotEndpoint);
+        builder.AppendLine("视频: " + (videoOnline ? "在线" : "断线") + "    感知UDP: " + (perceptionOnline ? "在线" : "断线"));
         builder.AppendLine("火源: " + (detected ? "已发现" : "未发现") + "    置信度: " + confidence.ToString("P0") + "    " + direction);
         builder.AppendLine(obstacle + "    计划方向: " + PlannedDirection);
         builder.AppendLine("推理: " + inference + "    视频帧龄: " + videoAge);
-        builder.AppendLine(emergency ? "急停已生效" : "WASD移动  J灭火  Esc急停  M切换模式");
+        builder.AppendLine(emergency ? "急停已生效" : "右手A / U切换AUTO，移动摇杆人工接管");
         statusText.text = builder.ToString();
         statusText.color = emergency || (latest != null && latest.dynamic_obstacle) ? new Color(1f, 0.55f, 0.35f) : Color.white;
         UpdateDetectionFrame(detected);

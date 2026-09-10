@@ -443,6 +443,7 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
     // ⭐ 新增：按钮长按只触发一次的“上升沿”检测
     // private bool _buttonHeldPrev = false;
     private bool _rightGripHeldPrev = false;
+    private InputAction _autoToggleAction;
     private float _neutralInputSince = -1f;
     private float _rightTriggerHoldSince = -1f;
     private float _leftTriggerHoldSince = -1f;
@@ -465,6 +466,15 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
         rightGripAction?.action?.Enable();
         rightTriggerAction?.action?.Enable();
         leftTriggerAction?.action?.Enable();
+
+        if (_autoToggleAction == null)
+        {
+            _autoToggleAction = new InputAction(
+                "Toggle AUTO",
+                InputActionType.Button,
+                "<XRController>{RightHand}/{PrimaryButton}");
+        }
+        _autoToggleAction.Enable();
     }
 
     void OnDisable()
@@ -477,6 +487,7 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
             rightGripAction?.action?.Disable();
             rightTriggerAction?.action?.Disable();
             leftTriggerAction?.action?.Disable();
+            _autoToggleAction?.Disable();
         }
         catch { }
     }
@@ -637,7 +648,11 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
             Debug.Log("[TCP] Recv : RED (keyboard debug)");
         }
 
-        if (enableKeyboardButtonDebug && Keyboard.current != null && Keyboard.current.uKey.wasPressedThisFrame)
+        bool keyboardAutoToggle = enableKeyboardButtonDebug
+            && Keyboard.current != null
+            && Keyboard.current.uKey.wasPressedThisFrame;
+        bool xrAutoToggle = _autoToggleAction != null && _autoToggleAction.WasPressedThisFrame();
+        if (keyboardAutoToggle || xrAutoToggle)
             SetAutonomousMode(!autonomyEnabled);
 
         while (_ballQueue.TryDequeue(out var targetId))
@@ -983,6 +998,8 @@ public class RobotSyncManager : MonoBehaviour, IRobotCommandSink, IRobotStatePro
             _cts?.Cancel();
             _stream?.Close();
             _client?.Close();
+            _autoToggleAction?.Dispose();
+            _autoToggleAction = null;
         }
         catch { }
     }

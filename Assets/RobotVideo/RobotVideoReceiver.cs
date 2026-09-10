@@ -8,8 +8,8 @@ using UnityEngine.UI;
 public sealed class RobotVideoReceiver : MonoBehaviour
 {
     public FireRescueNetworkConfig networkConfig;
-    [Header("TonyPi 原厂视频")]
-    public string robotIp = "192.168.137.106";
+    [Header("Orange Pi 视频代理")]
+    public string robotIp = "192.168.137.121";
     [Min(1)] public int videoPort = 8080;
     [Min(0.1f)] public float reconnectDelaySeconds = 1f;
     [Min(1f)] public float fallbackSnapshotFps = 8f;
