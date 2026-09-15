@@ -4,11 +4,12 @@
 机器人端：TCP 连续步态 + 按钮命令 + 颜色转发
 Unity 每帧发送：{"v":float, "steer":float, "grab":bool, "t":"ISO8601"}\n
 Unity 按钮发送：CMD:<name>\n   例如 CMD:chest
-ColorDetect 本地 UDP(127.0.0.1:6001) 发送："RED"/"GREEN" → 转发到 Unity：COLOR_SIGNAL:RED/GREEN
+ColorDetect 本地 UDP(127.0.0.1:6001) 发送三色结果并转发到 Unity。
 """
 
 import socket
 import json
+import os
 import time
 import threading
 import signal
@@ -34,13 +35,37 @@ ACTION_BACK    = "back"
 ACTION_TURN_R  = "turn_right"
 ACTION_TURN_L  = "turn_left"
 ACTION_STAND   = "stand"
+ACTION_GROUP_DIR = os.environ.get(
+    "TONYPI_ACTION_GROUP_DIR", "/home/pi/TonyPi/ActionGroups"
+)
 
 # 按钮命令映射：收到 CMD:<key> -> 执行对应动作
 CMD_MAP = {
-    "right_grip": "outfire",        # 可自行扩展： "wave":"wave", "kick":"kick"
+    "right_grip": "outfire",
     "right_trigger": "stand_up_back",
     "left_trigger": "stand_up_front",
+    # 三个任务动作均来自老师提供的 ActionGroups，且动作明显不同。
+    "mission_red": "wave",          # 连续摆臂：模拟持喷头左右灭火
+    "mission_green": "squat",       # 下蹲：模拟近地面封堵泄漏
+    "mission_blue": "move_up",      # 双臂托举：模拟收纳并携带资料
+    # 自主导航沿用老师提供的标准行走和转向动作。
+    "nav_forward": "go_forward",
+    "nav_back": "back",
+    "nav_left": "turn_left",
+    "nav_right": "turn_right",
+    "nav_stop": "stand",
 }
+CMD_SEQUENCE_MAP = {
+    # Lift the documents, hold the pose long enough to be visible, then lower
+    # both arms to the stable standing pose.
+    "mission_blue": ("move_up", "stand"),
+}
+MISSION_BLUE_HOLD_S = 0.8
+REQUIRED_ACTION_GROUPS = tuple(sorted({
+    ACTION_FORWARD, ACTION_BACK, ACTION_TURN_R, ACTION_TURN_L, ACTION_STAND,
+    CMD_MAP["right_grip"], CMD_MAP["mission_red"], CMD_MAP["mission_green"], CMD_MAP["mission_blue"],
+    *(action for sequence in CMD_SEQUENCE_MAP.values() for action in sequence),
+}))
 # ===========================================
 
 
@@ -51,22 +76,39 @@ try:
 except Exception as e:
     print("[WARN] hiwonder.ActionGroupControl not found:", e)
 
-def _run_group(name: Optional[str]) -> None:
+_action_lock = threading.Lock()
+
+def _run_group(name: Optional[str]) -> bool:
     """兼容 runActionGroup / runAction；若 AGC 缺失则 dry-run 打印"""
     if not name:
-        return
+        return False
     if AGC is None:
         print(f"[DRY] would run: {name}")
-        return
-    try:
-        if hasattr(AGC, "runActionGroup"):
-            AGC.runActionGroup(name)
-        else:
-            AGC.runAction(name)
-        print(f"[ACT] {name}")
-    except Exception as e:
-        print("[ERR] run action:", e)
+        return True
+    action_file = os.path.join(ACTION_GROUP_DIR, name + ".d6a")
+    if not os.path.isfile(action_file):
+        print(f"[ERR] action group does not exist: {action_file}")
+        return False
+    with _action_lock:
+        try:
+            if hasattr(AGC, "runActionGroup"):
+                AGC.runActionGroup(name)
+            else:
+                AGC.runAction(name)
+            print(f"[ACT] {name}")
+            return True
+        except Exception as e:
+            print("[ERR] run action:", e)
+            return False
 # =========================================
+
+
+def _missing_required_action_groups():
+    """Return the course action files that must exist on a real TonyPi."""
+    return [
+        name for name in REQUIRED_ACTION_GROUPS
+        if not os.path.isfile(os.path.join(ACTION_GROUP_DIR, name + ".d6a"))
+    ]
 
 
 # ============== 共享状态 ==============
@@ -142,7 +184,20 @@ def _handle_cmd(cmd_raw: str) -> None:
         return
 
     print(f"[CMD] {cmd} -> action:{act}")
-    _run_group(act)
+    is_discrete = cmd.startswith("mission_") or cmd.startswith("nav_")
+    if is_discrete:
+        _set_mode("stand")
+    sequence = CMD_SEQUENCE_MAP.get(cmd, (act,))
+    succeeded = True
+    for index, action in enumerate(sequence):
+        if not _run_group(action):
+            succeeded = False
+            break
+        if cmd == "mission_blue" and index == 0:
+            time.sleep(MISSION_BLUE_HOLD_S)
+    if is_discrete:
+        result = "OK" if succeeded else "ERROR"
+        _send_to_unity_text(f"ACTION_RESULT:{cmd}:{result}")
     # 注意：按钮动作是一次性的，不改变连续步态 _mode
 
 def _process_line(line: bytes) -> None:
@@ -204,7 +259,7 @@ def _udp_color_listener() -> None:
         print("[UDP] recv =", raw)   # 新增
         
         tag = (data.decode("utf-8", "ignore").strip().upper())
-        if tag in ("RED", "GREEN"):
+        if tag in ("RED", "GREEN", "BLUE"):
             _send_to_unity_text(f"COLOR_SIGNAL:{tag}")
 # ======================================================
 
@@ -265,6 +320,13 @@ def _on_sigint(signum, frame):
 
 def main() -> None:
     signal.signal(signal.SIGINT, _on_sigint)
+
+    if AGC is not None:
+        missing = _missing_required_action_groups()
+        if missing:
+            print("[FATAL] missing required action groups:", ", ".join(missing))
+            raise SystemExit(2)
+        print("[READY] required action groups verified:", ", ".join(REQUIRED_ACTION_GROUPS))
 
     t_motion = threading.Thread(target=_motion_loop, daemon=True)
     t_motion.start()
