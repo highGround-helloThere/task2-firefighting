@@ -524,6 +524,8 @@ public class LightControl : MonoBehaviour
 
         if (parentFireToAnchor)
             fire.transform.SetParent(anchor, true);
+        else
+            fire.transform.SetParent(transform, true);
 
         fire.transform.localScale *= Mathf.Max(0.1f, fireScaleMultiplier);
         ApplyFireVisualBoost(fire);
@@ -564,11 +566,24 @@ public class LightControl : MonoBehaviour
         string key = FindNearestFireAnchorKeyAhead();
         if (string.IsNullOrEmpty(key))
         {
-            Debug.Log("[LightControl] RED received, but no available fire anchor is ahead.");
-            return;
+            key = DefaultKey;
+            Debug.Log("[LightControl] No fire anchor is ahead; using the default fire anchor.");
         }
 
         OnBallDetected(key);
+    }
+
+    public void HandleConfirmedFireDetection(string targetId)
+    {
+        foreach (var activeFire in _activeFires.Values)
+        {
+            if (activeFire != null)
+                return;
+        }
+
+        string normalized = (targetId ?? string.Empty).Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(normalized) || normalized.StartsWith("red"))
+            SpawnNearestFireFromRedSignal();
     }
 
     private string FindNearestFireAnchorKeyAhead()

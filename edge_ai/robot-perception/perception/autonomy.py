@@ -180,9 +180,13 @@ class CameraAutonomyController:
             return self._avoid_dynamic(clearances, obstacle_direction)
 
         if bool(fire_result.get("detected", False)):
-            fire_decision = self._follow_fire(fire_result, clearances)
-            if fire_decision is not None:
-                return fire_decision
+            target = str(fire_result.get("target", "")).lower()
+            if target in ("red", "red_ball", "fire"):
+                fire_decision = self._follow_fire(fire_result, clearances)
+                if fire_decision is not None:
+                    return fire_decision
+            else:
+                return self._motion(0.0, 0.0, False, "mission_target_detected")
 
         left_free = clearances["left"] >= self.clearance_threshold
         front_free = clearances["front"] >= self.clearance_threshold

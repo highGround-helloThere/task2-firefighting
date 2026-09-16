@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TonyPi red-ball perception sidecar for Orange Pi.
+"""TonyPi three-color target perception sidecar for Orange Pi.
 
 The process reads MJPEG video and writes JSON Lines to stdout. It deliberately
 contains no motion-control client or robot action imports.

@@ -33,6 +33,12 @@ public sealed class PerceptionUdpReceiver : MonoBehaviour
     private string _activeSessionId;
     private long _lastSequence;
     private float _lastPacketTime;
+    private LightControl _fireControl;
+
+    private void Awake()
+    {
+        _fireControl = FindFirstObjectByType<LightControl>();
+    }
 
     private void OnEnable()
     {
@@ -137,7 +143,15 @@ public sealed class PerceptionUdpReceiver : MonoBehaviour
             _lastPacketTime = Time.realtimeSinceStartup;
             LatestMessage = message;
             SetConnected(true);
-            SetDetected(message.video_ok && message.detected);
+            bool wasDetected = IsDetected;
+            bool fireDetected = message.video_ok && message.detected;
+            SetDetected(fireDetected);
+            if (fireDetected && !wasDetected)
+            {
+                if (_fireControl == null)
+                    _fireControl = FindFirstObjectByType<LightControl>();
+                _fireControl?.HandleConfirmedFireDetection(message.target);
+            }
             onTelemetry?.Invoke(message);
 
             if (logPackets)

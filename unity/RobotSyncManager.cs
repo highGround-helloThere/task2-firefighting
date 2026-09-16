@@ -368,7 +368,7 @@ public class RobotSyncManager : MonoBehaviour
     public bool AutonomyEnabled => autonomyEnabled;
 
     [Header("事件（外部订阅）")]
-    public UnityEvent<string> onColorSignalReceived = new UnityEvent<string>(); // "RED"/"GREEN" 颜色回传
+    public UnityEvent<string> onColorSignalReceived = new UnityEvent<string>(); // "RED"/"GREEN"/"BLUE" 颜色回传
     public UnityEvent<string> onBallDetected = new UnityEvent<string>(); // 小球检测回传
     public UnityEvent onActionTriggered = new UnityEvent();                     // 新增：动作触发
 
@@ -546,7 +546,7 @@ public class RobotSyncManager : MonoBehaviour
                     {
                         var col = m.Substring("COLOR_SIGNAL:".Length).Trim().ToUpperInvariant();
                         //if (col == "RED" || col == "GREEN") _recvQueue.Enqueue(col);
-                        if (col == "RED" || col == "GREEN")
+                        if (col == "RED" || col == "GREEN" || col == "BLUE")
                         {
                             _recvQueue.Enqueue(col);
                             Debug.Log($"[TCP] Recv : {col}"); // 添加日志输出
@@ -556,7 +556,7 @@ public class RobotSyncManager : MonoBehaviour
                     {
                         var col = m.ToUpperInvariant();
                         //if (col == "RED" || col == "GREEN") _recvQueue.Enqueue(col);
-                        if (col == "RED" || col == "GREEN")
+                        if (col == "RED" || col == "GREEN" || col == "BLUE")
                         {
                             _recvQueue.Enqueue(col);
                             Debug.Log($"[TCP] Recv : {col}"); // 添加日志输出
@@ -813,6 +813,11 @@ public class RobotSyncManager : MonoBehaviour
         {
             return false;
         }
+    }
+
+    public void SendOperatorCommand(string cmd)
+    {
+        _ = SendImmediateCmd(cmd);
     }
 
     private async Task SendImmediateCmd(string cmd)

@@ -3,8 +3,9 @@ project:
   mode: "shadow_perception"
 
 video:
-  url: "http://192.168.137.157:8080/?action=stream"
+  url: "http://192.168.137.8:8080/?action=stream"
   urls:
+    - "http://192.168.137.8:8080/?action=stream"
     - "http://192.168.137.157:8080/?action=stream"
     - "http://192.168.137.251:8080/?action=stream"
     - "http://192.168.149.1:8080/?action=stream"
@@ -19,9 +20,6 @@ video_proxy:
 
 detection:
   target: "red_ball"
-  color_space: "LAB"
-  lab_min: [55, 145, 118]
-  lab_max: [190, 195, 150]
   processing_width: 640
   processing_height: 480
   gaussian_blur_kernel: 3
@@ -32,9 +30,16 @@ detection:
   maximum_aspect_ratio: 1.67
   confirmation_frames: 3
   release_frames: 3
-
+  targets:
+    red_ball:
+      color_space: "HSV"
+      ranges:
+        - min: [0, 70, 50]
+          max: [15, 255, 255]
+        - min: [160, 60, 50]
+          max: [179, 255, 255]
 autonomy:
-  enabled: true
+  enabled: false
   processing_width: 320
   processing_height: 240
   roi_top_ratio: 0.50
@@ -57,7 +62,7 @@ telemetry:
   heartbeat_interval_seconds: 2.0
   udp:
     enabled: true
-    destination_host: "192.168.137.1"
+    destination_host: "127.0.0.1"
     destination_port: 6101
     send_hz: 10.0
     schema_version: 1
@@ -66,7 +71,7 @@ telemetry:
 safety:
   allowed_remote_tcp_ports: [8080]
   allowed_outbound_udp_destinations:
-    - "192.168.137.1:6101"
+    - "127.0.0.1:6101"
   network_listener_enabled: true
   allowed_network_listeners:
     - "tcp:0.0.0.0:8080"

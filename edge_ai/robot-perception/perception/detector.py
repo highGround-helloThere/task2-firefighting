@@ -1,15 +1,15 @@
-"""Red-ball detector using OpenCV color and contour filtering."""
+"""Red, green, and blue target detection using OpenCV color filtering."""
 
 import time
 
 import cv2
 import numpy as np
 
-class RedBallDetector:
+class ColorBallDetector:
     def __init__(self, config):
         self.target = str(config.get("target", "red_ball"))
-        self.lab_min = np.array(config["lab_min"], dtype=np.uint8)
-        self.lab_max = np.array(config["lab_max"], dtype=np.uint8)
+        self.color_space = str(config.get("color_space", "LAB")).upper()
+        self.color_ranges = self._load_color_ranges(config)
         self.processing_size = (
             int(config.get("processing_width", 320)),
             int(config.get("processing_height", 240)),
@@ -30,6 +30,45 @@ class RedBallDetector:
     def _odd_kernel(value):
         value = max(1, int(value))
         return value if value % 2 else value + 1
+
+    def _load_color_ranges(self, config):
+        configured_ranges = config.get("ranges")
+        if configured_ranges:
+            ranges = configured_ranges
+        else:
+            prefix = self.color_space.lower()
+            ranges = [
+                {
+                    "min": config[f"{prefix}_min"],
+                    "max": config[f"{prefix}_max"],
+                }
+            ]
+
+        parsed = []
+        for color_range in ranges:
+            minimum = np.array(color_range["min"], dtype=np.uint8)
+            maximum = np.array(color_range["max"], dtype=np.uint8)
+            if minimum.shape != (3,) or maximum.shape != (3,):
+                raise ValueError(f"{self.target} color ranges must contain three channels")
+            parsed.append((minimum, maximum))
+        return parsed
+
+    def _convert_color(self, frame):
+        conversions = {
+            "LAB": cv2.COLOR_BGR2LAB,
+            "HSV": cv2.COLOR_BGR2HSV,
+            "RGB": cv2.COLOR_BGR2RGB,
+        }
+        conversion = conversions.get(self.color_space)
+        if conversion is None:
+            raise ValueError(f"unsupported color space: {self.color_space}")
+        return cv2.cvtColor(frame, conversion)
+
+    def _build_mask(self, converted):
+        mask = np.zeros(converted.shape[:2], dtype=np.uint8)
+        for minimum, maximum in self.color_ranges:
+            mask = cv2.bitwise_or(mask, cv2.inRange(converted, minimum, maximum))
+        return mask
 
     def _update_confirmation(self, candidate_detected):
         if candidate_detected:
@@ -52,8 +91,8 @@ class RedBallDetector:
         blurred = cv2.GaussianBlur(
             resized, (self.blur_kernel, self.blur_kernel), self.blur_kernel
         )
-        lab = cv2.cvtColor(blurred, cv2.COLOR_BGR2LAB)
-        mask = cv2.inRange(lab, self.lab_min, self.lab_max)
+        converted = self._convert_color(blurred)
+        mask = self._build_mask(converted)
         kernel = cv2.getStructuringElement(
             cv2.MORPH_ELLIPSE,
             (self.morphology_kernel, self.morphology_kernel),
@@ -151,5 +190,49 @@ class RedBallDetector:
         }
 
 
+class RedBallDetector(ColorBallDetector):
+    """Backward-compatible name for the original single-target detector."""
+
+
+class MultiColorBallDetector:
+    def __init__(self, detector_configs):
+        self.detectors = [ColorBallDetector(config) for config in detector_configs]
+        if not self.detectors:
+            raise ValueError("at least one color target must be configured")
+
+    def process(self, frame):
+        results = [detector.process(frame) for detector in self.detectors]
+        confirmed = [result for result in results if result["detected"]]
+        candidates = [result for result in results if result["candidate_detected"]]
+        selected_pool = confirmed or candidates or results
+        selected = max(
+            selected_pool,
+            key=lambda result: (
+                float(result.get("contour_area", 0.0)),
+                float(result.get("largest_color_area", 0.0)),
+            ),
+        )
+        selected = dict(selected)
+        selected["detected_targets"] = [
+            result["target"] for result in confirmed
+        ]
+        return selected
+
+
 def build_detector(config):
-    return RedBallDetector(config)
+    targets = config.get("targets")
+    if not targets:
+        return RedBallDetector(config)
+    if not isinstance(targets, dict):
+        raise ValueError("detection.targets must be a mapping")
+
+    shared = {key: value for key, value in config.items() if key != "targets"}
+    detector_configs = []
+    for target, target_config in targets.items():
+        if not isinstance(target_config, dict):
+            raise ValueError(f"configuration for {target} must be a mapping")
+        merged = dict(shared)
+        merged.update(target_config)
+        merged["target"] = str(target)
+        detector_configs.append(merged)
+    return MultiColorBallDetector(detector_configs)
